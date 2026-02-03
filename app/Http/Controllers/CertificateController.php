@@ -3,26 +3,35 @@
 namespace App\Http\Controllers;
 
 use App\Models\Certificate;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
+/**
+ * Controller for managing Certificates.
+ * 
+ * Following best practices:
+ * - php-pro: Type hints, return types, modern PHP 8 features
+ * - software-architecture: Clean code patterns
+ */
 class CertificateController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Display a listing of certificates.
+     */
+    public function index(Request $request): View
     {
         $query = Certificate::with('creator')->latest();
 
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('certificate_number', 'like', "%{$search}%")
-                  ->orWhere('personnel_name', 'like', "%{$search}%")
-                  ->orWhere('purpose', 'like', "%{$search}%");
-            });
+            $query->search($request->search);
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->status($request->status);
         }
 
         $certificates = $query->paginate(15)->withQueryString();
@@ -30,34 +39,24 @@ class CertificateController extends Controller
         return view('certificates.index', compact('certificates'));
     }
 
-    public function create()
+    /**
+     * Show the form for creating a new certificate.
+     */
+    public function create(): View
     {
-        // Auto-generate certificate number (Format: Running Number / Thai Year e.g. 1/2569)
-        $currentThaiYear = date('Y') + 543;
-        $lastCert = Certificate::where('certificate_number', 'LIKE', "%/{$currentThaiYear}")
-            ->latest('id')
-            ->first();
-
-        $runningNumber = 1;
-
-        if ($lastCert) {
-            // Extract the number part before the slash
-            if (preg_match('/^(\d+)\//', $lastCert->certificate_number, $matches)) {
-                $runningNumber = intval($matches[1]) + 1;
-            }
-        }
-
-        $nextCertificateNumber = "{$runningNumber}/{$currentThaiYear}";
+        $nextCertificateNumber = $this->generateNextCertificateNumber();
 
         return view('certificates.create', compact('nextCertificateNumber'));
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created certificate in storage.
+     */
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'certificate_number' => 'required|string|max:100|unique:certificates',
             'issue_date' => 'required|date',
-            // Removed required fields as per request
             'personnel_name' => 'nullable|string|max:255',
             'position' => 'nullable|string|max:255',
             'purpose' => 'nullable|string|max:500',
@@ -66,8 +65,7 @@ class CertificateController extends Controller
         ]);
 
         $validated['created_by'] = Auth::id();
-        // Default status if not provided
-        $validated['status'] = $validated['status'] ?? 'issued';
+        $validated['status'] = $validated['status'] ?? Certificate::STATUS_ISSUED;
 
         Certificate::create($validated);
 
@@ -75,20 +73,29 @@ class CertificateController extends Controller
             ->with('success', 'บันทึกหนังสือรับรองเรียบร้อยแล้ว');
     }
 
-    public function show(Certificate $certificate)
+    /**
+     * Display the specified certificate.
+     */
+    public function show(Certificate $certificate): View
     {
         return view('certificates.show', compact('certificate'));
     }
 
-    public function edit(Certificate $certificate)
+    /**
+     * Show the form for editing the specified certificate.
+     */
+    public function edit(Certificate $certificate): View
     {
         return view('certificates.edit', compact('certificate'));
     }
 
-    public function update(Request $request, Certificate $certificate)
+    /**
+     * Update the specified certificate in storage.
+     */
+    public function update(Request $request, Certificate $certificate): RedirectResponse
     {
         $validated = $request->validate([
-            'certificate_number' => 'required|string|max:100|unique:certificates,certificate_number,' . $certificate->id,
+            'certificate_number' => "required|string|max:100|unique:certificates,certificate_number,{$certificate->id}",
             'issue_date' => 'required|date',
             'personnel_name' => 'required|string|max:255',
             'position' => 'nullable|string|max:255',
@@ -103,7 +110,10 @@ class CertificateController extends Controller
             ->with('success', 'อัปเดตหนังสือรับรองเรียบร้อยแล้ว');
     }
 
-    public function destroy(Certificate $certificate)
+    /**
+     * Remove the specified certificate from storage.
+     */
+    public function destroy(Certificate $certificate): RedirectResponse
     {
         $certificate->delete();
 
@@ -111,9 +121,33 @@ class CertificateController extends Controller
             ->with('success', 'ลบหนังสือรับรองเรียบร้อยแล้ว');
     }
 
-    public function exportPdf(Certificate $certificate)
+    /**
+     * Export certificate to PDF.
+     */
+    public function exportPdf(Certificate $certificate): Response
     {
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('certificates.pdf', compact('certificate'));
-        return $pdf->stream('certificate-' . $certificate->certificate_number . '.pdf');
+        $pdf = Pdf::loadView('certificates.pdf', compact('certificate'));
+
+        return $pdf->stream("certificate-{$certificate->certificate_number}.pdf");
+    }
+
+    /**
+     * Generate the next certificate number.
+     */
+    private function generateNextCertificateNumber(): string
+    {
+        $currentThaiYear = date('Y') + 543;
+
+        $lastCert = Certificate::where('certificate_number', 'LIKE', "%/{$currentThaiYear}")
+            ->latest('id')
+            ->first();
+
+        $runningNumber = 1;
+
+        if ($lastCert && preg_match('/^(\d+)\//', $lastCert->certificate_number, $matches)) {
+            $runningNumber = intval($matches[1]) + 1;
+        }
+
+        return "{$runningNumber}/{$currentThaiYear}";
     }
 }

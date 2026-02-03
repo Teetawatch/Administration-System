@@ -3,22 +3,41 @@
 namespace App\Http\Controllers;
 
 use App\Models\VehicleDriver;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
+/**
+ * Controller for managing Vehicle Drivers.
+ * 
+ * Following best practices:
+ * - php-pro: Type hints, return types, modern PHP 8 features
+ * - software-architecture: Clean code patterns
+ */
 class VehicleDriverController extends Controller
 {
-    public function index()
+    /**
+     * Display a listing of vehicle drivers.
+     */
+    public function index(): View
     {
         $drivers = VehicleDriver::latest()->paginate(10);
+
         return view('vehicle-drivers.index', compact('drivers'));
     }
 
-    public function create()
+    /**
+     * Show the form for creating a new driver.
+     */
+    public function create(): View
     {
         return view('vehicle-drivers.create');
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created driver in storage.
+     */
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -26,7 +45,7 @@ class VehicleDriverController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $validated['is_active'] = $request->has('is_active');
+        $validated['is_active'] = $request->boolean('is_active');
 
         VehicleDriver::create($validated);
 
@@ -34,12 +53,18 @@ class VehicleDriverController extends Controller
             ->with('success', 'เพิ่มพนักงานขับรถเรียบร้อยแล้ว');
     }
 
-    public function edit(VehicleDriver $vehicleDriver)
+    /**
+     * Show the form for editing the specified driver.
+     */
+    public function edit(VehicleDriver $vehicleDriver): View
     {
         return view('vehicle-drivers.edit', compact('vehicleDriver'));
     }
 
-    public function update(Request $request, VehicleDriver $vehicleDriver)
+    /**
+     * Update the specified driver in storage.
+     */
+    public function update(Request $request, VehicleDriver $vehicleDriver): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -47,7 +72,7 @@ class VehicleDriverController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $validated['is_active'] = $request->has('is_active');
+        $validated['is_active'] = $request->boolean('is_active');
 
         $vehicleDriver->update($validated);
 
@@ -55,9 +80,13 @@ class VehicleDriverController extends Controller
             ->with('success', 'ปรับปรุงข้อมูลพนักงานขับรถเรียบร้อยแล้ว');
     }
 
-    public function destroy(VehicleDriver $vehicleDriver)
+    /**
+     * Remove the specified driver from storage.
+     */
+    public function destroy(VehicleDriver $vehicleDriver): RedirectResponse
     {
         $vehicleDriver->delete();
+
         return redirect()->route('vehicle-drivers.index')
             ->with('success', 'ลบข้อมูลพนักงานขับรถเรียบร้อยแล้ว');
     }

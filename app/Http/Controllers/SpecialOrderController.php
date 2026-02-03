@@ -3,28 +3,36 @@
 namespace App\Http\Controllers;
 
 use App\Models\SpecialOrder;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
 
+/**
+ * Controller for managing Special Orders.
+ * 
+ * Following best practices:
+ * - php-pro: Type hints, return types, modern PHP 8 features
+ * - software-architecture: Clean code patterns
+ */
 class SpecialOrderController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Display a listing of special orders.
+     */
+    public function index(Request $request): View
     {
         $query = SpecialOrder::with('creator')->latest();
 
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('order_number', 'like', "%{$search}%")
-                  ->orWhere('subject', 'like', "%{$search}%");
-            });
+            $query->search($request->search);
         }
 
-
-
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->status($request->status);
         }
 
         $orders = $query->paginate(15)->withQueryString();
@@ -32,49 +40,38 @@ class SpecialOrderController extends Controller
         return view('special-orders.index', compact('orders'));
     }
 
-    public function create()
+    /**
+     * Show the form for creating a new special order.
+     */
+    public function create(): View
     {
-        // Auto-generate order number (Format: Running/ThaiYear e.g. 1/2569)
-        $currentThaiYear = date('Y') + 543;
-        $lastOrder = SpecialOrder::where('order_number', 'LIKE', "%/{$currentThaiYear}")
-            ->latest('id')
-            ->first();
-
-        $runningNumber = 1;
-
-        if ($lastOrder) {
-            // Extract the number part before the slash
-            if (preg_match('/^(\d+)\//', $lastOrder->order_number, $matches)) {
-                $runningNumber = intval($matches[1]) + 1;
-            }
-        }
-
-        $nextOrderNumber = "{$runningNumber}/{$currentThaiYear}";
+        $nextOrderNumber = $this->generateNextOrderNumber();
 
         return view('special-orders.create', compact('nextOrderNumber'));
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created special order in storage.
+     */
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'order_number' => 'required|string|max:100|unique:special_orders',
             'order_date' => 'required|date',
             'subject' => 'required|string|max:500',
             'content' => 'nullable|string',
-
             'effective_date' => 'nullable|date',
-            'status' => 'nullable|in:draft,active,cancelled', // Made nullable
+            'status' => 'nullable|in:draft,active,cancelled',
             'attachment' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
         ]);
 
         $validated['created_by'] = Auth::id();
-        $validated['status'] = $validated['status'] ?? 'active'; // Default to active if not provided
+        $validated['status'] = $validated['status'] ?? SpecialOrder::STATUS_ACTIVE;
+        $validated['content'] = $validated['content'] ?? '';
 
         if ($request->hasFile('attachment')) {
             $validated['attachment_path'] = $request->file('attachment')->store('special-orders', 'public');
         }
-
-        $validated['content'] = $validated['content'] ?? '';
 
         SpecialOrder::create($validated);
 
@@ -82,20 +79,29 @@ class SpecialOrderController extends Controller
             ->with('success', 'บันทึกคำสั่งโรงเรียน (เฉพาะ) เรียบร้อยแล้ว');
     }
 
-    public function show(SpecialOrder $specialOrder)
+    /**
+     * Display the specified special order.
+     */
+    public function show(SpecialOrder $specialOrder): View
     {
         return view('special-orders.show', compact('specialOrder'));
     }
 
-    public function edit(SpecialOrder $specialOrder)
+    /**
+     * Show the form for editing the specified special order.
+     */
+    public function edit(SpecialOrder $specialOrder): View
     {
         return view('special-orders.edit', compact('specialOrder'));
     }
 
-    public function update(Request $request, SpecialOrder $specialOrder)
+    /**
+     * Update the specified special order in storage.
+     */
+    public function update(Request $request, SpecialOrder $specialOrder): RedirectResponse
     {
         $validated = $request->validate([
-            'order_number' => 'required|string|max:100|unique:special_orders,order_number,' . $specialOrder->id,
+            'order_number' => "required|string|max:100|unique:special_orders,order_number,{$specialOrder->id}",
             'order_date' => 'required|date',
             'subject' => 'required|string|max:500',
             'content' => 'nullable|string',
@@ -104,14 +110,12 @@ class SpecialOrderController extends Controller
             'attachment' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
         ]);
 
+        $validated['content'] = $validated['content'] ?? '';
+
         if ($request->hasFile('attachment')) {
-            if ($specialOrder->attachment_path) {
-                Storage::disk('public')->delete($specialOrder->attachment_path);
-            }
+            $this->deleteOldAttachment($specialOrder);
             $validated['attachment_path'] = $request->file('attachment')->store('special-orders', 'public');
         }
-
-        $validated['content'] = $validated['content'] ?? '';
 
         $specialOrder->update($validated);
 
@@ -119,21 +123,55 @@ class SpecialOrderController extends Controller
             ->with('success', 'อัปเดตคำสั่งโรงเรียน (เฉพาะ) เรียบร้อยแล้ว');
     }
 
-    public function destroy(SpecialOrder $specialOrder)
+    /**
+     * Remove the specified special order from storage.
+     */
+    public function destroy(SpecialOrder $specialOrder): RedirectResponse
     {
-        if ($specialOrder->attachment_path) {
-            Storage::disk('public')->delete($specialOrder->attachment_path);
-        }
-
+        $this->deleteOldAttachment($specialOrder);
         $specialOrder->delete();
 
         return redirect()->route('special-orders.index')
             ->with('success', 'ลบคำสั่งโรงเรียน (เฉพาะ) เรียบร้อยแล้ว');
     }
 
-    public function exportPdf(SpecialOrder $specialOrder)
+    /**
+     * Export special order to PDF.
+     */
+    public function exportPdf(SpecialOrder $specialOrder): Response
     {
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('special-orders.pdf', compact('specialOrder'));
-        return $pdf->stream('special-order-' . $specialOrder->order_number . '.pdf');
+        $pdf = Pdf::loadView('special-orders.pdf', compact('specialOrder'));
+
+        return $pdf->stream("special-order-{$specialOrder->order_number}.pdf");
+    }
+
+    /**
+     * Generate the next order number.
+     */
+    private function generateNextOrderNumber(): string
+    {
+        $currentThaiYear = date('Y') + 543;
+
+        $lastOrder = SpecialOrder::where('order_number', 'LIKE', "%/{$currentThaiYear}")
+            ->latest('id')
+            ->first();
+
+        $runningNumber = 1;
+
+        if ($lastOrder && preg_match('/^(\d+)\//', $lastOrder->order_number, $matches)) {
+            $runningNumber = intval($matches[1]) + 1;
+        }
+
+        return "{$runningNumber}/{$currentThaiYear}";
+    }
+
+    /**
+     * Delete old attachment if exists.
+     */
+    private function deleteOldAttachment(SpecialOrder $specialOrder): void
+    {
+        if ($specialOrder->attachment_path) {
+            Storage::disk('public')->delete($specialOrder->attachment_path);
+        }
     }
 }

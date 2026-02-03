@@ -3,25 +3,41 @@
 namespace App\Http\Controllers;
 
 use App\Models\Vehicle;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
+/**
+ * Controller for managing Vehicles.
+ * 
+ * Following best practices:
+ * - php-pro: Type hints, return types, modern PHP 8 features
+ * - software-architecture: Clean code patterns
+ */
 class VehicleController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of vehicles.
      */
-    public function index()
+    public function index(): View
     {
         $vehicles = Vehicle::latest()->paginate(10);
+
         return view('vehicles.index', compact('vehicles'));
     }
 
-    public function create()
+    /**
+     * Show the form for creating a new vehicle.
+     */
+    public function create(): View
     {
         return view('vehicles.create');
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created vehicle in storage.
+     */
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -37,23 +53,32 @@ class VehicleController extends Controller
             ->with('success', 'เพิ่มข้อมูลยานพาหนะเรียบร้อยแล้ว');
     }
 
-    public function show(Vehicle $vehicle)
+    /**
+     * Display the specified vehicle.
+     */
+    public function show(Vehicle $vehicle): View
     {
         return view('vehicles.show', compact('vehicle'));
     }
 
-    public function edit(Vehicle $vehicle)
+    /**
+     * Show the form for editing the specified vehicle.
+     */
+    public function edit(Vehicle $vehicle): View
     {
         return view('vehicles.edit', compact('vehicle'));
     }
 
-    public function update(Request $request, Vehicle $vehicle)
+    /**
+     * Update the specified vehicle in storage.
+     */
+    public function update(Request $request, Vehicle $vehicle): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:255',
             'brand' => 'required|string|max:255',
-            'license_plate' => 'required|string|max:50|unique:vehicles,license_plate,' . $vehicle->id,
+            'license_plate' => "required|string|max:50|unique:vehicles,license_plate,{$vehicle->id}",
             'status' => 'required|in:available,maintenance,in_use',
         ]);
 
@@ -63,7 +88,10 @@ class VehicleController extends Controller
             ->with('success', 'อัปเดตข้อมูลยานพาหนะเรียบร้อยแล้ว');
     }
 
-    public function destroy(Vehicle $vehicle)
+    /**
+     * Remove the specified vehicle from storage.
+     */
+    public function destroy(Vehicle $vehicle): RedirectResponse
     {
         $vehicle->delete();
 

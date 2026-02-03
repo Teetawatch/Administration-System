@@ -3,63 +3,55 @@
 namespace App\Http\Controllers;
 
 use App\Models\NavyNews;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
 
+/**
+ * Controller for managing Navy News.
+ * 
+ * Following best practices:
+ * - php-pro: Type hints, return types, modern PHP 8 features
+ * - software-architecture: Clean code patterns
+ */
 class NavyNewsController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Display a listing of navy news.
+     */
+    public function index(Request $request): View
     {
         $query = NavyNews::with('creator')->latest();
 
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('news_number', 'like', "%{$search}%")
-                  ->orWhere('title', 'like', "%{$search}%");
-            });
+            $query->search($request->search);
         }
 
         if ($request->filled('urgency')) {
-            $query->where('urgency', $request->urgency);
+            $query->urgency($request->urgency);
         }
 
         $news = $query->paginate(15)->withQueryString();
 
-
         return view('navy-news.index', compact('news'));
     }
 
-    public function create()
+    /**
+     * Show the form for creating a new news.
+     */
+    public function create(): View
     {
-        // Auto-generate news number (Format: XX/01/YY where XX=Running, YY=Thai Year 2 digits)
-        // Example: 01/01/69, 02/01/69
-        
-        $monthPart = '01'; // Fixed as per request
-        $thaiYearFull = date('Y') + 543;
-        $thaiYearShort = substr($thaiYearFull, -2); // 69
-        $suffix = "/{$monthPart}/{$thaiYearShort}";
-
-        $lastNews = NavyNews::where('news_number', 'LIKE', "%{$suffix}")
-            ->latest('id')
-            ->first();
-
-        $runningNumber = 1;
-
-        if ($lastNews) {
-            // Extract the number part before the slash
-            if (preg_match('/^(\d+)\//', $lastNews->news_number, $matches)) {
-                $runningNumber = intval($matches[1]) + 1;
-            }
-        }
-
-        $nextNewsNumber = str_pad($runningNumber, 2, '0', STR_PAD_LEFT) . $suffix;
+        $nextNewsNumber = $this->generateNextNewsNumber();
 
         return view('navy-news.create', compact('nextNewsNumber'));
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created news in storage.
+     */
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'news_number' => 'required|string|max:100|unique:navy_news',
@@ -71,13 +63,11 @@ class NavyNewsController extends Controller
         ]);
 
         $validated['created_by'] = Auth::id();
+        $validated['content'] = $validated['content'] ?? '';
 
         if ($request->hasFile('attachment')) {
             $validated['attachment_path'] = $request->file('attachment')->store('navy-news', 'public');
         }
-
-        // Fix for SQLSTATE[23000]: Column 'content' cannot be null
-        $validated['content'] = $validated['content'] ?? '';
 
         NavyNews::create($validated);
 
@@ -85,20 +75,29 @@ class NavyNewsController extends Controller
             ->with('success', 'บันทึกข่าวราชนาวีเรียบร้อยแล้ว');
     }
 
-    public function show(NavyNews $navyNews)
+    /**
+     * Display the specified news.
+     */
+    public function show(NavyNews $navyNews): View
     {
         return view('navy-news.show', compact('navyNews'));
     }
 
-    public function edit(NavyNews $navyNews)
+    /**
+     * Show the form for editing the specified news.
+     */
+    public function edit(NavyNews $navyNews): View
     {
         return view('navy-news.edit', compact('navyNews'));
     }
 
-    public function update(Request $request, NavyNews $navyNews)
+    /**
+     * Update the specified news in storage.
+     */
+    public function update(Request $request, NavyNews $navyNews): RedirectResponse
     {
         $validated = $request->validate([
-            'news_number' => 'required|string|max:100|unique:navy_news,news_number,' . $navyNews->id,
+            'news_number' => "required|string|max:100|unique:navy_news,news_number,{$navyNews->id}",
             'news_date' => 'required|date',
             'title' => 'required|string|max:500',
             'urgency' => 'required|in:normal,urgent,very_urgent,most_urgent',
@@ -106,15 +105,12 @@ class NavyNewsController extends Controller
             'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,png|max:10240',
         ]);
 
+        $validated['content'] = $validated['content'] ?? '';
+
         if ($request->hasFile('attachment')) {
-            if ($navyNews->attachment_path) {
-                Storage::disk('public')->delete($navyNews->attachment_path);
-            }
+            $this->deleteOldAttachment($navyNews);
             $validated['attachment_path'] = $request->file('attachment')->store('navy-news', 'public');
         }
-
-        // Fix for SQLSTATE[23000]: Column 'content' cannot be null
-        $validated['content'] = $validated['content'] ?? '';
 
         $navyNews->update($validated);
 
@@ -122,15 +118,48 @@ class NavyNewsController extends Controller
             ->with('success', 'อัปเดตข่าวราชนาวีเรียบร้อยแล้ว');
     }
 
-    public function destroy(NavyNews $navyNews)
+    /**
+     * Remove the specified news from storage.
+     */
+    public function destroy(NavyNews $navyNews): RedirectResponse
     {
-        if ($navyNews->attachment_path) {
-            Storage::disk('public')->delete($navyNews->attachment_path);
-        }
-
+        $this->deleteOldAttachment($navyNews);
         $navyNews->delete();
 
         return redirect()->route('navy-news.index')
             ->with('success', 'ลบข่าวราชนาวีเรียบร้อยแล้ว');
+    }
+
+    /**
+     * Generate the next news number.
+     */
+    private function generateNextNewsNumber(): string
+    {
+        $monthPart = '01';
+        $thaiYearFull = date('Y') + 543;
+        $thaiYearShort = substr((string) $thaiYearFull, -2);
+        $suffix = "/{$monthPart}/{$thaiYearShort}";
+
+        $lastNews = NavyNews::where('news_number', 'LIKE', "%{$suffix}")
+            ->latest('id')
+            ->first();
+
+        $runningNumber = 1;
+
+        if ($lastNews && preg_match('/^(\d+)\//', $lastNews->news_number, $matches)) {
+            $runningNumber = intval($matches[1]) + 1;
+        }
+
+        return str_pad((string) $runningNumber, 2, '0', STR_PAD_LEFT) . $suffix;
+    }
+
+    /**
+     * Delete old attachment if exists.
+     */
+    private function deleteOldAttachment(NavyNews $navyNews): void
+    {
+        if ($navyNews->attachment_path) {
+            Storage::disk('public')->delete($navyNews->attachment_path);
+        }
     }
 }

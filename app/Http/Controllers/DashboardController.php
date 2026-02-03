@@ -2,53 +2,142 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\OutgoingDocument;
 use App\Models\Certificate;
-use App\Models\SchoolOrder;
+use App\Models\OutgoingDocument;
 use App\Models\Personnel;
+use App\Models\SchoolOrder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\View\View;
 
+/**
+ * Controller for the Dashboard.
+ * 
+ * Following best practices:
+ * - php-pro: Type hints, return types, modern PHP 8 features
+ * - software-architecture: Clean code patterns
+ */
 class DashboardController extends Controller
 {
-    public function index()
+    /**
+     * Display the dashboard.
+     */
+    public function index(): View
     {
-        // Counts
-        $todayOutgoing = OutgoingDocument::whereDate('created_at', Carbon::today())->count();
-        $yearCertificates = Certificate::whereYear('created_at', Carbon::now()->year)->count();
-        $yearSchoolOrders = SchoolOrder::whereYear('created_at', Carbon::now()->year)->count();
-        $totalPersonnel = Personnel::count();
+        $stats = $this->getStats();
+        $recentDocuments = $this->getRecentDocuments();
 
-        // Recent Activity (Mixed)
-        $recentOutgoing = OutgoingDocument::latest()->take(5)->get()->map(function ($item) {
-            $item->type = 'outgoing_document';
-            $item->display_title = 'หนังสือส่ง: ' . $item->document_number;
-            $item->display_desc = $item->subject;
-            $item->display_date = $item->created_at;
-            $item->route_name = 'outgoing-documents.show';
-            return $item;
-        });
+        return view('dashboard', [
+            'todayOutgoing' => $stats['todayOutgoing'],
+            'yearCertificates' => $stats['yearCertificates'],
+            'yearSchoolOrders' => $stats['yearSchoolOrders'],
+            'totalPersonnel' => $stats['totalPersonnel'],
+            'recentDocuments' => $recentDocuments,
+        ]);
+    }
 
-        $recentCertificates = Certificate::latest()->take(5)->get()->map(function ($item) {
-            $item->type = 'certificate';
-            $item->display_title = 'หนังสือรับรอง: ' . $item->certificate_number;
-            $item->display_desc = $item->personnel_name . ' (' . $item->purpose . ')';
-            $item->display_date = $item->created_at;
-            $item->route_name = 'certificates.show';
-            return $item;
-        });
+    /**
+     * Get dashboard statistics.
+     *
+     * @return array<string, int>
+     */
+    private function getStats(): array
+    {
+        $today = Carbon::today();
+        $currentYear = Carbon::now()->year;
 
-        // Merge and Sort
-        $recentDocuments = $recentOutgoing->concat($recentCertificates)
+        return [
+            'todayOutgoing' => OutgoingDocument::whereDate('created_at', $today)->count(),
+            'yearCertificates' => Certificate::whereYear('created_at', $currentYear)->count(),
+            'yearSchoolOrders' => SchoolOrder::whereYear('created_at', $currentYear)->count(),
+            'totalPersonnel' => Personnel::count(),
+        ];
+    }
+
+    /**
+     * Get recent documents for activity feed.
+     *
+     * @return Collection
+     */
+    private function getRecentDocuments(): Collection
+    {
+        $recentOutgoing = $this->mapOutgoingDocuments();
+        $recentCertificates = $this->mapCertificates();
+
+        return $recentOutgoing
+            ->concat($recentCertificates)
             ->sortByDesc('created_at')
             ->take(5);
+    }
 
-        return view('dashboard', compact(
-            'todayOutgoing',
-            'yearCertificates',
-            'yearSchoolOrders',
-            'totalPersonnel',
-            'recentDocuments'
-        ));
+    /**
+     * Map outgoing documents for display.
+     *
+     * @return Collection
+     */
+    private function mapOutgoingDocuments(): Collection
+    {
+        return OutgoingDocument::latest()
+            ->take(5)
+            ->get()
+            ->map(fn($item) => $this->formatDocument(
+                item: $item,
+                type: 'outgoing_document',
+                titlePrefix: 'หนังสือส่ง',
+                titleField: 'document_number',
+                descField: 'subject',
+                routeName: 'outgoing-documents.show'
+            ));
+    }
+
+    /**
+     * Map certificates for display.
+     *
+     * @return Collection
+     */
+    private function mapCertificates(): Collection
+    {
+        return Certificate::latest()
+            ->take(5)
+            ->get()
+            ->map(fn($item) => $this->formatDocument(
+                item: $item,
+                type: 'certificate',
+                titlePrefix: 'หนังสือรับรอง',
+                titleField: 'certificate_number',
+                descField: null,
+                routeName: 'certificates.show',
+                customDesc: fn($i) => "{$i->personnel_name} ({$i->purpose})"
+            ));
+    }
+
+    /**
+     * Format a document for display in the activity feed.
+     *
+     * @param mixed $item
+     * @param string $type
+     * @param string $titlePrefix
+     * @param string $titleField
+     * @param string|null $descField
+     * @param string $routeName
+     * @param callable|null $customDesc
+     * @return object
+     */
+    private function formatDocument(
+        mixed $item,
+        string $type,
+        string $titlePrefix,
+        string $titleField,
+        ?string $descField,
+        string $routeName,
+        ?callable $customDesc = null
+    ): object {
+        $item->type = $type;
+        $item->display_title = "{$titlePrefix}: {$item->{$titleField} }";
+        $item->display_desc = $customDesc ? $customDesc($item) : ($descField ? $item->{$descField} : '');
+        $item->display_date = $item->created_at;
+        $item->route_name = $routeName;
+
+        return $item;
     }
 }
