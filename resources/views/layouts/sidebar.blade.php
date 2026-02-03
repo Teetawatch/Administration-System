@@ -1,144 +1,224 @@
+<!-- 
+    Responsive Sidebar
+    - Mobile (< lg): Hidden by default, slides in when hamburger is clicked
+    - Desktop (lg+): Always visible, can be collapsed
+-->
+
+<!-- Mobile Overlay -->
+<div 
+    x-show="$store.sidebar.open"
+    @click="$store.sidebar.close()"
+    class="fixed inset-0 z-40 bg-black/50 lg:hidden"
+    x-transition:enter="transition-opacity ease-out duration-300"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition-opacity ease-in duration-200"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    x-cloak
+></div>
+
 <!-- Sidebar -->
 <aside 
     :class="[
-        collapsed ? 'w-64 lg:w-20' : 'w-64',
-        $store.sidebar.open ? 'translate-x-0 shadow-xl' : '-translate-x-full lg:translate-x-0'
+        collapsed ? 'lg:w-20' : 'lg:w-64',
+        $store.sidebar.open ? 'translate-x-0' : '-translate-x-full'
     ]"
-    class="fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-gray-200 transition-all duration-300"
-    x-cloak
+    class="fixed inset-y-0 left-0 z-50 flex flex-col w-[280px] bg-white border-r border-gray-200 shadow-xl transition-transform duration-300 ease-in-out lg:translate-x-0 lg:shadow-none"
 >
     <!-- Logo & Toggle -->
-    <div class="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+    <div class="flex items-center justify-between h-16 px-4 border-b border-gray-200 bg-white shrink-0">
         <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
-            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-navy-700">
-                <i data-lucide="file-text" class="w-6 h-6 text-white"></i>
+            <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-navy-600 to-navy-800 shadow-lg">
+                <i data-lucide="file-text" class="w-5 h-5 text-white"></i>
             </div>
-            <span x-show="!collapsed" x-transition class="text-lg font-semibold text-navy-800">
+            <span x-show="!collapsed" x-transition.opacity.duration.200ms class="text-lg font-semibold text-navy-800 whitespace-nowrap lg:block" :class="collapsed ? 'lg:hidden' : ''">
                 ระบบงานธุรการ
             </span>
         </a>
+        
+        <!-- Mobile Close Button -->
         <button 
-            @click="$store.sidebar.open = false"
-            class="lg:hidden flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            @click="$store.sidebar.close()"
+            class="lg:hidden flex items-center justify-center w-11 h-11 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-700 active:bg-gray-200 transition-colors"
+            aria-label="ปิดเมนู"
         >
-            <i data-lucide="x" class="w-5 h-5"></i>
+            <i data-lucide="x" class="w-6 h-6"></i>
         </button>
+        
+        <!-- Desktop Collapse Button -->
         <button 
             @click="collapsed = !collapsed"
-            class="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            class="hidden lg:flex items-center justify-center w-9 h-9 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            aria-label="ย่อ/ขยายเมนู"
         >
-            <i data-lucide="chevrons-left" class="w-5 h-5 transition-transform" :class="collapsed && 'rotate-180'"></i>
+            <i data-lucide="chevrons-left" class="w-5 h-5 transition-transform duration-300" :class="collapsed && 'rotate-180'"></i>
         </button>
     </div>
 
     <!-- Navigation -->
-    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         <!-- หน้าหลัก -->
-        <x-sidebar-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+        <a href="{{ route('dashboard') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('dashboard') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="layout-dashboard" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">หน้าหลัก</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">หน้าหลัก</span>
+        </a>
 
-        <!-- Divider -->
+        <!-- Divider - หนังสือราชการ -->
         <div class="pt-4 pb-2">
-            <p x-show="!collapsed" class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <p x-show="!collapsed" class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" :class="collapsed ? 'lg:hidden' : 'lg:block'">
                 หนังสือราชการ
             </p>
-            <div x-show="collapsed" class="h-px mx-4 bg-gray-200"></div>
+            <div x-show="collapsed" class="hidden lg:block h-px mx-3 bg-gray-200"></div>
         </div>
 
         <!-- เลขหนังสือส่ง -->
-        <x-sidebar-link :href="route('outgoing-documents.index')" :active="request()->routeIs('outgoing-documents.*')">
+        <a href="{{ route('outgoing-documents.index') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('outgoing-documents.*') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="send" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">เลขหนังสือส่ง</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">เลขหนังสือส่ง</span>
+        </a>
 
         <!-- หนังสือรับรอง -->
-        <x-sidebar-link :href="route('certificates.index')" :active="request()->routeIs('certificates.*')">
+        <a href="{{ route('certificates.index') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('certificates.*') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="file-badge" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">หนังสือรับรอง</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">หนังสือรับรอง</span>
+        </a>
 
         <!-- ข่าวราชนาวี -->
-        <x-sidebar-link :href="route('navy-news.index')" :active="request()->routeIs('navy-news.*')">
+        <a href="{{ route('navy-news.index') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('navy-news.*') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="newspaper" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">ข่าวราชนาวี</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">ข่าวราชนาวี</span>
+        </a>
 
-        <!-- Divider -->
+        <!-- Divider - คำสั่ง -->
         <div class="pt-4 pb-2">
-            <p x-show="!collapsed" class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <p x-show="!collapsed" class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" :class="collapsed ? 'lg:hidden' : 'lg:block'">
                 คำสั่ง
             </p>
-            <div x-show="collapsed" class="h-px mx-4 bg-gray-200"></div>
+            <div x-show="collapsed" class="hidden lg:block h-px mx-3 bg-gray-200"></div>
         </div>
 
         <!-- คำสั่งโรงเรียน -->
-        <x-sidebar-link :href="route('school-orders.index')" :active="request()->routeIs('school-orders.*')">
+        <a href="{{ route('school-orders.index') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('school-orders.*') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="clipboard-list" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">คำสั่งโรงเรียน</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">คำสั่งโรงเรียน</span>
+        </a>
 
         <!-- คำสั่งโรงเรียน (เฉพาะ) -->
-        <x-sidebar-link :href="route('special-orders.index')" :active="request()->routeIs('special-orders.*')">
+        <a href="{{ route('special-orders.index') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('special-orders.*') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="clipboard-signature" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">คำสั่งโรงเรียน (เฉพาะ)</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">คำสั่งโรงเรียน (เฉพาะ)</span>
+        </a>
 
-        <!-- Divider -->
+        <!-- Divider - กิจกรรม -->
         <div class="pt-4 pb-2">
-            <p x-show="!collapsed" class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <p x-show="!collapsed" class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" :class="collapsed ? 'lg:hidden' : 'lg:block'">
                 กิจกรรม
             </p>
-            <div x-show="collapsed" class="h-px mx-4 bg-gray-200"></div>
+            <div x-show="collapsed" class="hidden lg:block h-px mx-3 bg-gray-200"></div>
         </div>
 
         <!-- จัดคิวกิจกรรม -->
-        <x-sidebar-link :href="route('activities.index')" :active="request()->routeIs('activities.*')">
+        <a href="{{ route('activities.index') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('activities.*') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="calendar-check" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">จัดคิวกิจกรรม</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">จัดคิวกิจกรรม</span>
+        </a>
 
         <!-- รายชื่อข้าราชการ -->
-        <x-sidebar-link :href="route('personnel.index')" :active="request()->routeIs('personnel.*')">
+        <a href="{{ route('personnel.index') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('personnel.*') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="users" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">รายชื่อข้าราชการ</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">รายชื่อข้าราชการ</span>
+        </a>
 
-        <!-- Divider -->
+        <!-- Divider - ยานพาหนะ -->
         <div class="pt-4 pb-2">
-            <p x-show="!collapsed" class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <p x-show="!collapsed" class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" :class="collapsed ? 'lg:hidden' : 'lg:block'">
                 ยานพาหนะ
             </p>
-            <div x-show="collapsed" class="h-px mx-4 bg-gray-200"></div>
+            <div x-show="collapsed" class="hidden lg:block h-px mx-3 bg-gray-200"></div>
         </div>
 
         <!-- ข้อมูลยานพาหนะ -->
-        <x-sidebar-link :href="route('vehicles.index')" :active="request()->routeIs('vehicles.*')">
+        <a href="{{ route('vehicles.index') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('vehicles.*') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="car-front" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">ข้อมูลยานพาหนะ</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">ข้อมูลยานพาหนะ</span>
+        </a>
 
         <!-- รายการจองยานพาหนะ -->
-        <x-sidebar-link :href="route('vehicle-bookings.index')" :active="request()->routeIs('vehicle-bookings.*')">
+        <a href="{{ route('vehicle-bookings.index') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('vehicle-bookings.*') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="calendar-clock" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">รายการจอง</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">รายการจอง</span>
+        </a>
 
         <!-- จัดการคนขับ -->
-        <x-sidebar-link :href="route('vehicle-drivers.index')" :active="request()->routeIs('vehicle-drivers.*')">
+        <a href="{{ route('vehicle-drivers.index') }}" 
+           class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px]
+                  {{ request()->routeIs('vehicle-drivers.*') 
+                     ? 'bg-navy-50 text-navy-700 border-l-4 border-navy-600' 
+                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}"
+           @click="$store.sidebar.close()">
             <i data-lucide="users" class="w-5 h-5 shrink-0"></i>
-            <span x-show="!collapsed" x-transition class="truncate">จัดการคนขับ</span>
-        </x-sidebar-link>
+            <span x-show="!collapsed" x-transition.opacity class="truncate lg:block" :class="collapsed ? 'lg:hidden' : ''">จัดการคนขับ</span>
+        </a>
     </nav>
 
     <!-- User Section -->
-    <div class="border-t border-gray-200 p-4">
+    <div class="border-t border-gray-200 p-4 bg-gray-50 shrink-0">
         <div class="flex items-center gap-3">
             <div class="flex items-center justify-center w-10 h-10 rounded-full bg-navy-100 text-navy-700">
                 <i data-lucide="user" class="w-5 h-5"></i>
             </div>
-            <div x-show="!collapsed" x-transition class="flex-1 min-w-0">
+            <div x-show="!collapsed" x-transition.opacity class="flex-1 min-w-0 lg:block" :class="collapsed ? 'lg:hidden' : ''">
                 <p class="text-sm font-medium text-gray-700 truncate">
                     {{ Auth::user()->name ?? 'ผู้ใช้งาน' }}
                 </p>
@@ -146,41 +226,39 @@
                     {{ Auth::user()->email ?? '' }}
                 </p>
             </div>
-            <x-dropdown align="right" width="48">
-                <x-slot name="trigger">
-                    <button class="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
-                        <i data-lucide="more-vertical" class="w-5 h-5"></i>
-                    </button>
-                </x-slot>
-                <x-slot name="content">
-                    <x-dropdown-link :href="route('profile.edit')">
-                        <i data-lucide="settings" class="w-4 h-4 mr-2"></i>
+            <div x-show="!collapsed" class="relative lg:block" :class="collapsed ? 'lg:hidden' : ''" x-data="{ dropdownOpen: false }">
+                <button 
+                    @click="dropdownOpen = !dropdownOpen"
+                    class="flex items-center justify-center w-9 h-9 rounded-lg text-gray-500 hover:bg-gray-200 transition-colors"
+                >
+                    <i data-lucide="more-vertical" class="w-5 h-5"></i>
+                </button>
+                
+                <div 
+                    x-show="dropdownOpen"
+                    @click.outside="dropdownOpen = false"
+                    x-transition:enter="transition ease-out duration-100"
+                    x-transition:enter-start="transform opacity-0 scale-95"
+                    x-transition:enter-end="transform opacity-100 scale-100"
+                    x-transition:leave="transition ease-in duration-75"
+                    x-transition:leave-start="transform opacity-100 scale-100"
+                    x-transition:leave-end="transform opacity-0 scale-95"
+                    class="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                    style="display: none;"
+                >
+                    <a href="{{ route('profile.edit') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
                         ตั้งค่าโปรไฟล์
-                    </x-dropdown-link>
+                    </a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <x-dropdown-link :href="route('logout')"
-                            onclick="event.preventDefault(); this.closest('form').submit();">
-                            <i data-lucide="log-out" class="w-4 h-4 mr-2"></i>
+                        <button type="submit" class="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
                             ออกจากระบบ
-                        </x-dropdown-link>
+                        </button>
                     </form>
-                </x-slot>
-            </x-dropdown>
+                </div>
+            </div>
         </div>
     </div>
 </aside>
-
-<!-- Mobile Overlay -->
-<div 
-    x-show="$store.sidebar.open"
-    x-transition:enter="transition-opacity ease-linear duration-300"
-    x-transition:enter-start="opacity-0"
-    x-transition:enter-end="opacity-100"
-    x-transition:leave="transition-opacity ease-linear duration-300"
-    x-transition:leave-start="opacity-100"
-    x-transition:leave-end="opacity-0"
-    @click="$store.sidebar.open = false"
-    class="fixed inset-0 z-40 bg-gray-600/50 lg:hidden"
-    x-cloak
-></div>

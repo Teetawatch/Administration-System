@@ -5,6 +5,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide x-cloak elements until Alpine.js initializes */
+[x-cloak] {
+    display: none !important;
+}
+
 /* Base Styles */
 @layer base {
     html {
