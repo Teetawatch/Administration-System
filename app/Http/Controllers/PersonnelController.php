@@ -30,15 +30,24 @@ class PersonnelController extends Controller
     }
 
     /**
-     * Export personnel data to PDF.
+     * Export personnel data to PDF with current filters and view mode.
      */
-    public function exportPdf(): Response
+    public function exportPdf(Request $request): Response
     {
-        $personnelByDepartment = $this->personnelService->getActivePersonnelByDepartment();
+        $viewMode = $request->input('view_mode', 'department');
+
+        // Get personnel with current filters
+        $personnelByDepartment = $this->personnelService->getPersonnelByDepartment(
+            search: $request->input('search'),
+            department: $request->input('department'),
+            status: 'active', // Export active personnel by default
+            viewMode: $viewMode
+        );
 
         $pdf = Pdf::loadView('personnel.pdf', compact('personnelByDepartment'));
 
-        return $pdf->stream('personnel-' . date('Y-m-d') . '.pdf');
+        $filename = 'personnel-' . ($viewMode == 'all' ? 'all-' : 'dept-') . date('Y-m-d') . '.pdf';
+        return $pdf->stream($filename);
     }
 
     /**
