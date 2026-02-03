@@ -31,9 +31,9 @@
             <header class="sticky top-0 z-30 bg-white border-b border-gray-200">
                 <div class="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
                     <!-- Mobile Menu Button (Hamburger) -->
-                    <button type="button" @click="sidebarOpen = true"
-                        class="lg:hidden flex items-center justify-center w-12 h-12 -ml-2 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200 transition-all duration-200"
-                        aria-label="เปิดเมนู">
+                    <button type="button" @click="sidebarOpen = !sidebarOpen"
+                        class="lg:hidden flex items-center justify-center w-12 h-12 -ml-2 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200 active:scale-95 transition-all duration-200"
+                        aria-label="เปิด/ปิดเมนู" :aria-expanded="sidebarOpen">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M4 6h16M4 12h16M4 18h16"></path>
