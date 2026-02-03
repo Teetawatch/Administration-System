@@ -2,31 +2,49 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StorePersonnelRequest;
+use App\Http\Requests\UpdatePersonnelRequest;
 use App\Models\Personnel;
+use App\Services\PersonnelService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Response;
+use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\PersonnelImport;
-use Barryvdh\DomPDF\Facade\Pdf;
 
+/**
+ * Controller for managing Personnel records.
+ * 
+ * Following best practices:
+ * - php-pro: Type hints, return types, modern PHP 8 features
+ * - software-architecture: Separation of concerns via service class
+ * - database-architect: Optimized queries via service layer
+ */
 class PersonnelController extends Controller
 {
-    public function exportPdf()
+    public function __construct(
+        private readonly PersonnelService $personnelService
+    ) {
+    }
+
+    /**
+     * Export personnel data to PDF.
+     */
+    public function exportPdf(): Response
     {
-        $personnelByDepartment = Personnel::active()
-            ->orderBy('sort_order', 'asc')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->groupBy(function ($item) {
-                return $item->department ?: 'ไม่ระบุฝ่าย';
-            });
+        $personnelByDepartment = $this->personnelService->getActivePersonnelByDepartment();
 
         $pdf = Pdf::loadView('personnel.pdf', compact('personnelByDepartment'));
+
         return $pdf->stream('personnel-' . date('Y-m-d') . '.pdf');
     }
 
-    public function import(Request $request)
+    /**
+     * Import personnel data from Excel file.
+     */
+    public function import(Request $request): RedirectResponse
     {
         $request->validate([
             'file' => 'required|mimes:xlsx,xls,csv|max:2048',
@@ -34,178 +52,115 @@ class PersonnelController extends Controller
 
         Excel::import(new PersonnelImport, $request->file('file'));
 
-        return redirect()->route('personnel.index')->with('success', 'นำเข้าข้อมูลจาก Excel เรียบร้อยแล้ว');
+        return redirect()->route('personnel.index')
+            ->with('success', 'นำเข้าข้อมูลจาก Excel เรียบร้อยแล้ว');
     }
 
-    public function downloadTemplate()
+    /**
+     * Download Excel template for importing personnel.
+     */
+    public function downloadTemplate(): mixed
     {
         return Excel::download(new \App\Exports\PersonnelTemplateExport, 'personnel_template.xlsx');
     }
-    public function index(Request $request)
+
+    /**
+     * Display a listing of personnel.
+     */
+    public function index(Request $request): View
     {
-        // Fetch all personnel ordered by sort_order
-        $query = Personnel::orderBy('sort_order', 'asc')->orderBy('created_at', 'desc');
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('employee_id', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('position', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->filled('department')) {
-            $query->where('department', $request->department);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Get all personnel
-        $allPersonnel = $query->get();
-
         $viewMode = $request->input('view_mode', 'department');
 
-        if ($viewMode === 'all') {
-            $personnelByDepartment = collect(['รายชื่อทั้งหมด' => $allPersonnel]);
-        } else {
-            // Group by department
-            $grouped = $allPersonnel->groupBy(function ($item) {
-                return $item->department ?: 'ไม่ระบุฝ่าย';
-            });
+        $personnelByDepartment = $this->personnelService->getPersonnelByDepartment(
+            search: $request->input('search'),
+            department: $request->input('department'),
+            status: $request->input('status'),
+            viewMode: $viewMode
+        );
 
-            // Custom sort order
-            $customOrder = [
-                'ส่วนบังคับบัญชา',
-                'แผนกปกครอง',
-                'แผนกศึกษา',
-                'แผนกสนับสนุน',
-                'ฝ่ายธุรการ',
-                'ฝ่ายการเงิน'
-            ];
-
-            // Sort the collection keys based on custom order
-            $personnelByDepartment = $grouped->sortKeysUsing(function ($key1, $key2) use ($customOrder) {
-                $pos1 = array_search($key1, $customOrder);
-                $pos2 = array_search($key2, $customOrder);
-
-                // If both are in custom list, compare positions
-                if ($pos1 !== false && $pos2 !== false) {
-                    return $pos1 - $pos2;
-                }
-
-                // If one is in list, it comes first
-                if ($pos1 !== false) return -1;
-                if ($pos2 !== false) return 1;
-
-                // If neither, sort alphabetically
-                return strcmp($key1, $key2);
-            });
-        }
-
-        // Departments list for filter dropdown
-        $departments = Personnel::distinct()->pluck('department')->filter();
+        $departments = $this->personnelService->getDepartments();
 
         return view('personnel.index', compact('personnelByDepartment', 'departments', 'viewMode'));
     }
 
-    public function reorder(Request $request)
+    /**
+     * Reorder personnel records via drag-and-drop.
+     */
+    public function reorder(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
             'ids' => 'required|array',
             'ids.*' => 'exists:personnel,id',
         ]);
 
-        foreach ($request->ids as $index => $id) {
-            Personnel::where('id', $id)->update(['sort_order' => $index + 1]);
-        }
+        $this->personnelService->reorder($request->ids);
 
         return response()->json(['status' => 'success']);
     }
 
-    public function destroy(Personnel $personnel)
+    /**
+     * Remove the specified personnel from storage.
+     */
+    public function destroy(Personnel $personnel): RedirectResponse
     {
-        if ($personnel->photo_path) {
-            Storage::disk('public')->delete($personnel->photo_path);
-        }
-
-        $personnel->delete();
+        $this->personnelService->delete($personnel);
 
         return redirect()->route('personnel.index')
             ->with('success', 'ลบข้อมูลบุคลากรเรียบร้อยแล้ว');
     }
-    public function create()
+
+    /**
+     * Show the form for creating a new personnel.
+     */
+    public function create(): View
     {
         return view('personnel.create');
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created personnel in storage.
+     */
+    public function store(StorePersonnelRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'employee_id' => 'required|string|unique:personnel,employee_id',
-            'rank' => 'nullable|string',
-            'first_name' => 'required|string',
-            'last_name' => 'required|string',
-            'position' => 'nullable|string',
-            'department' => 'nullable|string',
-            'phone' => 'nullable|string',
-            'email' => 'nullable|email',
-            'hire_date' => 'nullable|date',
-            'status' => 'required|in:active,inactive,retired',
-            'photo' => 'nullable|image|max:2048',
-        ]);
+        $validated = $request->validated();
 
-        if ($request->hasFile('photo')) {
-            $path = $request->file('photo')->store('personnel-photos', 'public');
-            $validated['photo_path'] = $path;
-        }
-
-        $validated['sort_order'] = Personnel::max('sort_order') + 1;
-
-        Personnel::create($validated);
+        $this->personnelService->create(
+            data: $validated,
+            photo: $request->file('photo')
+        );
 
         return redirect()->route('personnel.index')
             ->with('success', 'เพิ่มข้อมูลบุคลากรเรียบร้อยแล้ว');
     }
 
-    public function show(Personnel $personnel)
+    /**
+     * Display the specified personnel.
+     */
+    public function show(Personnel $personnel): View
     {
         return view('personnel.show', compact('personnel'));
     }
 
-    public function edit(Personnel $personnel)
+    /**
+     * Show the form for editing the specified personnel.
+     */
+    public function edit(Personnel $personnel): View
     {
         return view('personnel.edit', compact('personnel'));
     }
 
-    public function update(Request $request, Personnel $personnel)
+    /**
+     * Update the specified personnel in storage.
+     */
+    public function update(UpdatePersonnelRequest $request, Personnel $personnel): RedirectResponse
     {
-        $validated = $request->validate([
-            'employee_id' => 'required|string|unique:personnel,employee_id,' . $personnel->id,
-            'rank' => 'nullable|string',
-            'first_name' => 'required|string',
-            'last_name' => 'required|string',
-            'position' => 'nullable|string',
-            'department' => 'nullable|string',
-            'phone' => 'nullable|string',
-            'email' => 'nullable|email',
-            'hire_date' => 'nullable|date',
-            'status' => 'required|in:active,inactive,retired',
-            'photo' => 'nullable|image|max:2048',
-        ]);
+        $validated = $request->validated();
 
-        if ($request->hasFile('photo')) {
-            if ($personnel->photo_path) {
-                Storage::disk('public')->delete($personnel->photo_path);
-            }
-            $path = $request->file('photo')->store('personnel-photos', 'public');
-            $validated['photo_path'] = $path;
-        }
-
-        $personnel->update($validated);
+        $this->personnelService->update(
+            personnel: $personnel,
+            data: $validated,
+            photo: $request->file('photo')
+        );
 
         return redirect()->route('personnel.index')
             ->with('success', 'อัปเดตข้อมูลบุคลากรเรียบร้อยแล้ว');

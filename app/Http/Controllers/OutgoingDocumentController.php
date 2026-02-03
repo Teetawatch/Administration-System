@@ -2,15 +2,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreOutgoingDocumentRequest;
+use App\Http\Requests\UpdateOutgoingDocumentRequest;
 use App\Models\OutgoingDocument;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use App\Services\OutgoingDocumentService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
+/**
+ * Controller for managing Outgoing Documents.
+ * 
+ * Following best practices:
+ * - php-pro: Type hints, return types, modern PHP 8 features
+ * - software-architecture: Separation of concerns via service class
+ * - database-architect: Optimized queries via service layer
+ */
 class OutgoingDocumentController extends Controller
 {
-    public function exportPdf(Request $request)
+    public function __construct(
+        private readonly OutgoingDocumentService $documentService
+    ) {
+    }
+
+    /**
+     * Export selected documents to PDF.
+     */
+    public function exportPdf(Request $request): RedirectResponse|Response
     {
         $ids = $request->input('document_ids', []);
 
@@ -18,177 +39,100 @@ class OutgoingDocumentController extends Controller
             return redirect()->back()->with('error', 'กรุณาเลือกรายการที่ต้องการพิมพ์');
         }
 
-        $documents = OutgoingDocument::whereIn('id', $ids)
-            ->orderBy('document_date', 'desc')
-            ->get();
+        $documents = $this->documentService->getDocumentsByIds($ids);
 
         $pdf = Pdf::loadView('outgoing-documents.pdf', compact('documents'))
             ->setPaper('a4', 'portrait');
+
         return $pdf->stream('outgoing-documents-' . date('Y-m-d') . '.pdf');
     }
 
     /**
-     * Display a listing of the resource.
+     * Display a listing of the documents.
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
-        $query = OutgoingDocument::with('creator')->latest();
+        $documents = $this->documentService->getPaginatedDocuments(
+            search: $request->input('search'),
+            department: $request->input('department'),
+            urgency: $request->input('urgency')
+        );
 
-        // Search functionality
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('document_number', 'like', "%{$search}%")
-                  ->orWhere('subject', 'like', "%{$search}%")
-                  ->orWhere('to_recipient', 'like', "%{$search}%");
-            });
-        }
-
-        // Filter by department
-        if ($request->filled('department')) {
-            $query->where('department', $request->department);
-        }
-
-        if ($request->filled('urgency')) {
-            $query->where('urgency', $request->urgency);
-        }
-
-        $documents = $query->paginate(15)->withQueryString();
-        $departments = OutgoingDocument::distinct()->pluck('department')->filter();
+        $departments = $this->documentService->getDepartments();
 
         return view('outgoing-documents.index', compact('documents', 'departments'));
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Show the form for creating a new document.
      */
-    public function create()
+    public function create(): View
     {
-        // Auto-generate document number
-        // Reset count every year (based on document_date year)
-        $currentYear = date('Y');
-
-        // 1. Calculate next number for Normal Documents (Format: just number e.g. 1, 2, 3)
-        $lastNormal = OutgoingDocument::where('is_secret', false)
-            ->whereYear('document_date', $currentYear)
-            ->latest('id')
-            ->first();
-
-        $runningNumberNormal = 1;
-        if ($lastNormal) {
-            // Extract number - could be "1", "2" or old format "1/2569"
-            if (is_numeric($lastNormal->document_number)) {
-                $runningNumberNormal = intval($lastNormal->document_number) + 1;
-            } elseif (preg_match('/^(\d+)/', $lastNormal->document_number, $matches)) {
-                $runningNumberNormal = intval($matches[1]) + 1;
-            }
-        }
-        $nextNormal = (string) $runningNumberNormal;
-
-        // 2. Calculate next number for Secret Documents (Format: ลับ 1, ลับ 2)
-        $lastSecret = OutgoingDocument::where('is_secret', true)
-            ->whereYear('document_date', $currentYear)
-            ->latest('id')
-            ->first();
-            
-        $runningNumberSecret = 1;
-        if ($lastSecret) {
-            // Extract number from "ลับ 1", "ลับ 2" or old format "ลับ 1/2569"
-            if (preg_match('/ลับ\s*(\d+)/', $lastSecret->document_number, $matches)) {
-                $runningNumberSecret = intval($matches[1]) + 1;
-            }
-        }
-        $nextSecret = "ลับ " . $runningNumberSecret;
+        $nextNormal = $this->documentService->getNextNormalDocumentNumber();
+        $nextSecret = $this->documentService->getNextSecretDocumentNumber();
 
         return view('outgoing-documents.create', compact('nextNormal', 'nextSecret'));
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created document in storage.
      */
-    public function store(Request $request)
+    public function store(StoreOutgoingDocumentRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'document_number' => 'required|string|max:100|unique:outgoing_documents',
-            'document_date' => 'required|date',
-            'to_recipient' => 'required|string|max:255',
-            'subject' => 'required|string|max:500',
-            'urgency' => 'required|in:normal,urgent,very_urgent,most_urgent',
-            'department' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,png|max:10240',
-            'is_secret' => 'boolean',
-        ]);
-
-        $validated['created_by'] = Auth::id();
+        $validated = $request->validated();
         $validated['is_secret'] = $request->boolean('is_secret', false);
 
-        if ($request->hasFile('attachment')) {
-            $validated['attachment_path'] = $request->file('attachment')->store('outgoing-documents', 'public');
-        }
-
-        OutgoingDocument::create($validated);
+        $this->documentService->create(
+            data: $validated,
+            userId: Auth::id(),
+            attachment: $request->file('attachment')
+        );
 
         return redirect()->route('outgoing-documents.index')
             ->with('success', 'บันทึกเลขหนังสือส่งเรียบร้อยแล้ว');
     }
 
     /**
-     * Display the specified resource.
+     * Display the specified document.
      */
-    public function show(OutgoingDocument $outgoingDocument)
+    public function show(OutgoingDocument $outgoingDocument): View
     {
         return view('outgoing-documents.show', compact('outgoingDocument'));
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Show the form for editing the specified document.
      */
-    public function edit(OutgoingDocument $outgoingDocument)
+    public function edit(OutgoingDocument $outgoingDocument): View
     {
         return view('outgoing-documents.edit', compact('outgoingDocument'));
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified document in storage.
      */
-    public function update(Request $request, OutgoingDocument $outgoingDocument)
-    {
-        $validated = $request->validate([
-            'document_number' => 'required|string|max:100|unique:outgoing_documents,document_number,' . $outgoingDocument->id,
-            'document_date' => 'required|date',
-            'to_recipient' => 'required|string|max:255',
-            'subject' => 'required|string|max:500',
-            'urgency' => 'required|in:normal,urgent,very_urgent,most_urgent',
-            'department' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,png|max:10240',
-        ]);
+    public function update(
+        UpdateOutgoingDocumentRequest $request,
+        OutgoingDocument $outgoingDocument
+    ): RedirectResponse {
+        $validated = $request->validated();
 
-        if ($request->hasFile('attachment')) {
-            // Delete old attachment
-            if ($outgoingDocument->attachment_path) {
-                Storage::disk('public')->delete($outgoingDocument->attachment_path);
-            }
-            $validated['attachment_path'] = $request->file('attachment')->store('outgoing-documents', 'public');
-        }
-
-        $outgoingDocument->update($validated);
+        $this->documentService->update(
+            document: $outgoingDocument,
+            data: $validated,
+            attachment: $request->file('attachment')
+        );
 
         return redirect()->route('outgoing-documents.index')
             ->with('success', 'อัปเดตเลขหนังสือส่งเรียบร้อยแล้ว');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Remove the specified document from storage.
      */
-    public function destroy(OutgoingDocument $outgoingDocument)
+    public function destroy(OutgoingDocument $outgoingDocument): RedirectResponse
     {
-        if ($outgoingDocument->attachment_path) {
-            Storage::disk('public')->delete($outgoingDocument->attachment_path);
-        }
-
-        $outgoingDocument->delete();
+        $this->documentService->delete($outgoingDocument);
 
         return redirect()->route('outgoing-documents.index')
             ->with('success', 'ลบเลขหนังสือส่งเรียบร้อยแล้ว');
