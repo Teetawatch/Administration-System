@@ -148,6 +148,15 @@
                             {{ $personnelGroup->count() }} คน
                         </span>
                     </h3>
+                    @if($department !== 'รายชื่อทั้งหมด')
+                        <a href="{{ route('personnel.pdf.export', ['department' => $department, 'view_mode' => 'department']) }}" 
+                           target="_blank"
+                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all text-sm font-medium shadow-sm active:scale-95"
+                           title="พิมพ์เฉพาะ {{ $department }}">
+                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                            <span>PDF เฉพาะแผนก</span>
+                        </a>
+                    @endif
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full">
