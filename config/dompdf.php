@@ -13,14 +13,7 @@ return [
     */
     'show_warnings' => false,   // Throw an Exception on warnings from dompdf
 
-    'public_path' => env('DOMPDF_PUBLIC_PATH') ?: (function() {
-        // For shared hosting with Laravel in /adm-core/ and public in /public_html/adm/
-        if (str_contains(base_path(), 'adm-core')) {
-            $path = base_path('../public_html/adm');
-            return is_dir($path) ? realpath($path) : $path;
-        }
-        return null;
-    })(),  // Override the public path if needed
+    'public_path' => env('DOMPDF_PUBLIC_PATH') ?: public_path(),
 
     /*
      * Dejavu Sans font is missing glyphs for converted entities, turn it off if you need to show € and £.
@@ -88,7 +81,6 @@ return [
         'chroot' => array_filter([
             realpath(base_path()),
             realpath(storage_path()),
-            str_contains(base_path(), 'adm-core') ? realpath(base_path('../public_html/adm')) : null,
         ]),
 
         /**

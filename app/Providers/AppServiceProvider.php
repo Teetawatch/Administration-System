@@ -11,11 +11,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Override public path for subdirectory hosting
-        // ตรวจสอบว่ากำลังรันบน production hosting หรือไม่
-        if (str_contains(base_path(), 'adm-core')) {
-            $this->app->usePublicPath(base_path('../public_html/adm'));
-        }
+        //
     }
 
     /**
