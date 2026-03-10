@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'ระบบงานธุรการ') }}</title>
+    <title>ระบบงานธุรการ</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -91,7 +91,7 @@
                                 </div>
 
                                 <a href="{{ route('profile.edit') }}"
-                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                    class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                                     <i data-lucide="user" class="w-4 h-4"></i>
                                     ข้อมูลส่วนตัว
                                 </a>
@@ -144,6 +144,87 @@
     <script src="https://nass.ac.th/adm/livewire/livewire.js" data-csrf="{{ csrf_token() }}"
         data-update-uri="/adm/livewire/update" data-navigate-once="true"
         onload="if(window.Livewire && !Livewire.started){ Livewire.start(); }"></script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // ดักจับ Session ของ Laravel สรุปเป็นแจ้งเตือนแบบไทย
+        @if(Session::has('success'))
+            Swal.fire({
+                icon: 'success',
+                title: 'สำเร็จ!',
+                text: '{{ Session::get('success') }}',
+                confirmButtonText: 'ตกลง',
+                confirmButtonColor: '#3085d6',
+            });
+        @endif
+
+        @if(Session::has('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด!',
+                text: '{{ Session::get('error') }}',
+                confirmButtonText: 'ตกลง',
+                confirmButtonColor: '#d33',
+            });
+        @endif
+
+        @if(Session::has('warning'))
+            Swal.fire({
+                icon: 'warning',
+                title: 'คำเตือน!',
+                text: '{{ Session::get('warning') }}',
+                confirmButtonText: 'ตกลง',
+                confirmButtonColor: '#f8bb86',
+            });
+        @endif
+
+        @if(Session::has('info'))
+            Swal.fire({
+                icon: 'info',
+                title: 'ข้อมูล',
+                text: '{{ Session::get('info') }}',
+                confirmButtonText: 'ตกลง',
+                confirmButtonColor: '#3fc3ee',
+            });
+        @endif
+
+        // แจ้งเตือนยืนยันการลบอัตโนมัติ (แปลง confirm ของเดิมทุกอันให้เป็น SweetAlert)
+        document.addEventListener('DOMContentLoaded', function () {
+            const formsWithConfirm = document.querySelectorAll('form[onsubmit*="confirm"]');
+            
+            formsWithConfirm.forEach(form => {
+                // ดึงข้อความแจ้งเตือนจาก onsubmit ของเดิม (ถ้ามี)
+                const onsubmitValue = form.getAttribute('onsubmit');
+                let confirmMessage = 'หากลบแล้วจะไม่สามารถกู้คืนได้!';
+                const match = onsubmitValue.match(/confirm\(['"](.*)['"]\)/);
+                if (match && match[1]) {
+                    confirmMessage = match[1];
+                }
+
+                // ลบ onsubmit เดิมออกเพื่อไม่ให้เด้ง confirm ธรรมดา
+                form.removeAttribute('onsubmit');
+                
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    Swal.fire({
+                        title: 'คุณแน่ใจหรือไม่?',
+                        text: confirmMessage,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#e0e0e0',
+                        cancelButtonText: '<span style="color: black;">ยกเลิก</span>',
+                        confirmButtonText: 'ใช่, ต้องการตกลง!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>

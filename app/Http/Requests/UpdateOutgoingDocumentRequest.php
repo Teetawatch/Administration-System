@@ -27,7 +27,10 @@ class UpdateOutgoingDocumentRequest extends FormRequest
      */
     public function rules(): array
     {
-        $documentId = $this->route('outgoingDocument')?->id ?? $this->route('outgoing_document');
+        $outgoingDocument = $this->route('outgoing_document') ?? $this->route('outgoingDocument');
+        $documentId = $outgoingDocument instanceof \Illuminate\Database\Eloquent\Model 
+            ? $outgoingDocument->id 
+            : $outgoingDocument;
 
         return [
             'document_number' => "required|string|max:100|unique:outgoing_documents,document_number,{$documentId}",
