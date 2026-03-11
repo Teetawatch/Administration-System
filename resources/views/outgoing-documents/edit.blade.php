@@ -75,8 +75,14 @@
                                id="to_recipient" 
                                name="to_recipient" 
                                value="{{ old('to_recipient', $outgoingDocument->to_recipient) }}"
+                               list="recipient-list"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-navy-500 @error('to_recipient') border-red-500 @enderror"
                                required>
+                        <datalist id="recipient-list">
+                            @foreach($recipients as $recipient)
+                                <option value="{{ $recipient }}">
+                            @endforeach
+                        </datalist>
                         @error('to_recipient')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -91,8 +97,14 @@
                                id="subject" 
                                name="subject" 
                                value="{{ old('subject', $outgoingDocument->subject) }}"
+                               list="subject-list"
                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-navy-500 @error('subject') border-red-500 @enderror"
                                required>
+                        <datalist id="subject-list">
+                            @foreach($subjects as $subject_item)
+                                <option value="{{ $subject_item }}">
+                            @endforeach
+                        </datalist>
                         @error('subject')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror

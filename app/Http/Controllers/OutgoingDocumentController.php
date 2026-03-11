@@ -70,8 +70,10 @@ class OutgoingDocumentController extends Controller
     {
         $nextNormal = $this->documentService->getNextNormalDocumentNumber();
         $nextSecret = $this->documentService->getNextSecretDocumentNumber();
+        $recipients = $this->documentService->getRecipients();
+        $subjects = $this->documentService->getSubjects();
 
-        return view('outgoing-documents.create', compact('nextNormal', 'nextSecret'));
+        return view('outgoing-documents.create', compact('nextNormal', 'nextSecret', 'recipients', 'subjects'));
     }
 
     /**
@@ -105,7 +107,10 @@ class OutgoingDocumentController extends Controller
      */
     public function edit(OutgoingDocument $outgoingDocument): View
     {
-        return view('outgoing-documents.edit', compact('outgoingDocument'));
+        $recipients = $this->documentService->getRecipients();
+        $subjects = $this->documentService->getSubjects();
+
+        return view('outgoing-documents.edit', compact('outgoingDocument', 'recipients', 'subjects'));
     }
 
     /**

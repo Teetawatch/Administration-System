@@ -190,4 +190,32 @@ class OutgoingDocumentService
     {
         return OutgoingDocument::distinct()->pluck('department')->filter();
     }
+
+    /**
+     * Get all unique recipients.
+     *
+     * @return \Illuminate\Support\Collection<string>
+     */
+    public function getRecipients(): Collection
+    {
+        return OutgoingDocument::select('to_recipient')
+            ->whereNotNull('to_recipient')
+            ->where('to_recipient', '!=', '')
+            ->distinct()
+            ->pluck('to_recipient');
+    }
+
+    /**
+     * Get all unique subjects.
+     *
+     * @return \Illuminate\Support\Collection<string>
+     */
+    public function getSubjects(): Collection
+    {
+        return OutgoingDocument::select('subject')
+            ->whereNotNull('subject')
+            ->where('subject', '!=', '')
+            ->distinct()
+            ->pluck('subject');
+    }
 }
