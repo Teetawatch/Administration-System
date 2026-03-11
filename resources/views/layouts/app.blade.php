@@ -138,17 +138,17 @@
 
     <!-- Alpine Store for Sidebar is defined in app.js -->
 
-    <!-- Livewire Scripts (Manual for subfolder /adm) -->
+    <!-- Livewire Scripts (Manual for subdomain) -->
     <script>
         window.livewireScriptConfig = {
             "csrf": "{{ csrf_token() }}",
-            "uri": "/adm/livewire/update",
+            "uri": "/livewire/update",
             "progressBar": true,
             "nonce": ""
         };
     </script>
-    <script src="https://nass.ac.th/adm/livewire/livewire.js" data-csrf="{{ csrf_token() }}"
-        data-update-uri="/adm/livewire/update" data-navigate-once="true"
+    <script src="https://administration.nass.ac.th/livewire/livewire.js" data-csrf="{{ csrf_token() }}"
+        data-update-uri="/livewire/update" data-navigate-once="true"
         onload="if(window.Livewire && !Livewire.started){ Livewire.start(); }"></script>
 
     <!-- SweetAlert2 -->
