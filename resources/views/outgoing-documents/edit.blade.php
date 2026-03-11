@@ -67,44 +67,104 @@
                     </div>
 
                     <!-- ถึง -->
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-2" x-data="{
+                            open: false,
+                            search: '{{ addslashes(old('to_recipient', $outgoingDocument->to_recipient)) }}',
+                            items: {{ Js::from($recipients) }},
+                            get filteredItems() {
+                                if (this.search === '') return this.items.slice(0, 10);
+                                return this.items.filter(item => item.toLowerCase().includes(this.search.toLowerCase())).slice(0, 10);
+                            },
+                            selectItem(item) {
+                                this.search = item;
+                                this.open = false;
+                            }
+                        }" @click.outside="open = false">
                         <label for="to_recipient" class="block text-sm font-medium text-gray-700 mb-2">
                             ถึง <span class="text-red-500">*</span>
                         </label>
-                        <input type="text" 
-                               id="to_recipient" 
-                               name="to_recipient" 
-                               value="{{ old('to_recipient', $outgoingDocument->to_recipient) }}"
-                               list="recipient-list"
-                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-navy-500 @error('to_recipient') border-red-500 @enderror"
-                               required>
-                        <datalist id="recipient-list">
-                            @foreach($recipients as $recipient)
-                                <option value="{{ $recipient }}">
-                            @endforeach
-                        </datalist>
+                        <div class="relative">
+                            <input type="text" 
+                                   id="to_recipient" 
+                                   name="to_recipient" 
+                                   x-model="search"
+                                   @focus="open = true"
+                                   @input="open = true"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-navy-500 @error('to_recipient') border-red-500 @enderror"
+                                   autocomplete="off"
+                                   required>
+                            
+                            <!-- Dropdown -->
+                            <div x-show="open && filteredItems.length > 0"
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="opacity-0 translate-y-[-10px]"
+                                 x-transition:enter-end="opacity-100 translate-y-0"
+                                 x-transition:leave="transition ease-in duration-100"
+                                 x-transition:leave-start="opacity-100 translate-y-0"
+                                 x-transition:leave-end="opacity-0 translate-y-[-10px]"
+                                 class="absolute z-10 w-full mt-1 bg-white border border-gray-100 rounded-lg shadow-xl max-h-60 overflow-y-auto ring-1 ring-black ring-opacity-5"
+                                 style="display: none;">
+                                <template x-for="item in filteredItems" :key="item">
+                                    <div @click="selectItem(item)"
+                                         class="px-4 py-2.5 cursor-pointer hover:bg-navy-50 hover:text-navy-700 text-sm text-gray-700 border-b border-gray-50 last:border-0 transition-colors flex items-center gap-2">
+                                        <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+                                        <span x-text="item"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
                         @error('to_recipient')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <!-- เรื่อง -->
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-2" x-data="{
+                            open: false,
+                            search: '{{ addslashes(old('subject', $outgoingDocument->subject)) }}',
+                            items: {{ Js::from($subjects) }},
+                            get filteredItems() {
+                                if (this.search === '') return this.items.slice(0, 10);
+                                return this.items.filter(item => item.toLowerCase().includes(this.search.toLowerCase())).slice(0, 10);
+                            },
+                            selectItem(item) {
+                                this.search = item;
+                                this.open = false;
+                            }
+                        }" @click.outside="open = false">
                         <label for="subject" class="block text-sm font-medium text-gray-700 mb-2">
                             เรื่อง <span class="text-red-500">*</span>
                         </label>
-                        <input type="text" 
-                               id="subject" 
-                               name="subject" 
-                               value="{{ old('subject', $outgoingDocument->subject) }}"
-                               list="subject-list"
-                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-navy-500 @error('subject') border-red-500 @enderror"
-                               required>
-                        <datalist id="subject-list">
-                            @foreach($subjects as $subject_item)
-                                <option value="{{ $subject_item }}">
-                            @endforeach
-                        </datalist>
+                        <div class="relative">
+                            <input type="text" 
+                                   id="subject" 
+                                   name="subject" 
+                                   x-model="search"
+                                   @focus="open = true"
+                                   @input="open = true"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-navy-500 @error('subject') border-red-500 @enderror"
+                                   autocomplete="off"
+                                   required>
+                            
+                            <!-- Dropdown -->
+                            <div x-show="open && filteredItems.length > 0"
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="opacity-0 translate-y-[-10px]"
+                                 x-transition:enter-end="opacity-100 translate-y-0"
+                                 x-transition:leave="transition ease-in duration-100"
+                                 x-transition:leave-start="opacity-100 translate-y-0"
+                                 x-transition:leave-end="opacity-0 translate-y-[-10px]"
+                                 class="absolute z-10 w-full mt-1 bg-white border border-gray-100 rounded-lg shadow-xl max-h-60 overflow-y-auto ring-1 ring-black ring-opacity-5"
+                                 style="display: none;">
+                                <template x-for="item in filteredItems" :key="item">
+                                    <div @click="selectItem(item)"
+                                         class="px-4 py-2.5 cursor-pointer hover:bg-navy-50 hover:text-navy-700 text-sm text-gray-700 border-b border-gray-50 last:border-0 transition-colors flex items-center gap-2">
+                                        <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+                                        <span x-text="item"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
                         @error('subject')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
