@@ -53,16 +53,17 @@ Route::middleware('auth')->group(function () {
     Route::post('personnel/reorder', [PersonnelController::class, 'reorder'])->name('personnel.reorder');
     Route::resource('personnel', PersonnelController::class)->except(['index']);
 
-    // Move public routes outside auth group
-    Route::get('personnel', [PersonnelController::class, 'index'])->name('personnel.index');
-    Route::get('personnel/pdf', [PersonnelController::class, 'exportPdf'])->name('personnel.pdf.export');
-    Route::get('personnel/excel', [PersonnelController::class, 'exportExcel'])->name('personnel.excel.export');
 
     // Vehicle Routes
     Route::resource('vehicles', \App\Http\Controllers\VehicleController::class);
     Route::resource('vehicle-bookings', \App\Http\Controllers\VehicleBookingController::class);
     Route::resource('vehicle-drivers', \App\Http\Controllers\VehicleDriverController::class);
 });
+
+// Public Personnel Routes (No Auth Required)
+Route::get('personnel', [PersonnelController::class, 'index'])->name('personnel.index');
+Route::get('personnel/pdf', [PersonnelController::class, 'exportPdf'])->name('personnel.pdf.export');
+Route::get('personnel/excel', [PersonnelController::class, 'exportExcel'])->name('personnel.excel.export');
 
 require __DIR__.'/auth.php';
 
