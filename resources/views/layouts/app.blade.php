@@ -64,6 +64,7 @@
                         </div>
 
                         <!-- User Dropdown -->
+                        @auth
                         <div class="relative ml-2" x-data="{ open: false }">
                             <button @click="open = !open"
                                 class="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition-colors">
@@ -106,6 +107,11 @@
                                 </form>
                             </div>
                         </div>
+                        @else
+                        <div class="relative ml-2">
+                            <a href="{{ route('login') }}" class="px-4 py-2 text-sm font-medium text-white bg-navy-600 rounded-lg hover:bg-navy-700 transition">เข้าสู่ระบบ</a>
+                        </div>
+                        @endauth
                     </div>
                 </div>
             </header>

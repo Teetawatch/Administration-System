@@ -21,21 +21,31 @@
             </div>
 
             <!-- Import Button Code -->
+            @auth
             <button onclick="document.getElementById('importModal').classList.remove('hidden')"
                 class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">
                 <i data-lucide="upload" class="w-5 h-5"></i><span>นำเข้า Excel</span>
             </button>
+            @endauth
+            <a href="{{ route('personnel.excel.export', request()->query()) }}" target="_blank"
+                class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition-transform active:scale-95 shadow-sm">
+                <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                <span>Excel ({{ $viewMode == 'all' ? 'เรียงทั้งหมด' : 'แยกแผนก' }})</span>
+            </a>
             <a href="{{ route('personnel.pdf.export', request()->query()) }}" target="_blank"
                 class="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-transform active:scale-95 shadow-sm">
                 <i data-lucide="file-text" class="w-5 h-5"></i>
                 <span>PDF ({{ $viewMode == 'all' ? 'เรียงทั้งหมด' : 'แยกแผนก' }})</span>
             </a>
+            @auth
             <a href="{{ route('personnel.create') }}"
                 class="inline-flex items-center gap-2 px-4 py-2.5 bg-navy-700 text-white rounded-lg hover:bg-navy-800 font-medium"><i
                     data-lucide="plus" class="w-5 h-5"></i><span>เพิ่มบุคลากร</span></a>
+            @endauth
         </div>
     </div>
 
+    @auth
     <!-- Import Modal -->
     <div id="importModal" class="fixed inset-0 z-50 hidden bg-gray-900/50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
@@ -65,6 +75,7 @@
             </form>
         </div>
     </div>
+    @endauth
 
     <style>
         .sortable-chosen {
@@ -149,20 +160,31 @@
                         </span>
                     </h3>
                     @if($department !== 'รายชื่อทั้งหมด')
-                        <a href="{{ route('personnel.pdf.export', ['department' => $department, 'view_mode' => 'department']) }}" 
-                           target="_blank"
-                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all text-sm font-medium shadow-sm active:scale-95"
-                           title="พิมพ์เฉพาะ {{ $department }}">
-                            <i data-lucide="file-text" class="w-4 h-4"></i>
-                            <span>PDF เฉพาะแผนก</span>
-                        </a>
+                        <div class="flex items-center gap-2">
+                            <a href="{{ route('personnel.excel.export', ['department' => $department, 'view_mode' => 'department']) }}" 
+                               target="_blank"
+                               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-emerald-200 text-emerald-600 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all text-sm font-medium shadow-sm active:scale-95"
+                               title="Excel เฉพาะ {{ $department }}">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                                <span>Excel แผนก</span>
+                            </a>
+                            <a href="{{ route('personnel.pdf.export', ['department' => $department, 'view_mode' => 'department']) }}" 
+                               target="_blank"
+                               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all text-sm font-medium shadow-sm active:scale-95"
+                               title="PDF เฉพาะ {{ $department }}">
+                                <i data-lucide="file-text" class="w-4 h-4"></i>
+                                <span>PDF แผนก</span>
+                            </a>
+                        </div>
                     @endif
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead class="bg-gray-50/80 border-b border-gray-200">
                             <tr>
+                                @auth
                                 <th class="w-16"></th>
+                                @endauth
                                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase w-24">ลำดับ
                                 </th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">ชื่อ-นามสกุล
@@ -170,12 +192,15 @@
                                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">ตำแหน่ง</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">เบอร์โทรศัพท์
                                 </th>
+                                @auth
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">จัดการ</th>
+                                @endauth
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200 sortable-list" data-department="{{ $department }}">
+                        <tbody class="divide-y divide-gray-200 @auth sortable-list @endauth" data-department="{{ $department }}">
                             @foreach ($personnelGroup as $index => $person)
                                 <tr class="hover:bg-gray-50 bg-white transition-colors" data-id="{{ $person->id }}">
+                                    @auth
                                     <td class="pl-4 py-4">
                                         <div class="flex items-center gap-1.5">
                                             <div class="cursor-move text-gray-300 hover:text-navy-600 p-1 transition-colors"
@@ -196,11 +221,18 @@
                                             </div>
                                         </div>
                                     </td>
+                                    @endauth
                                     <td class="px-6 py-4">
+                                        @auth
                                         <input type="number" value="{{ $index + 1 }}"
                                             class="index-input w-14 px-2 py-1 text-sm font-medium text-gray-600 border border-transparent hover:border-gray-300 focus:border-navy-500 rounded bg-transparent focus:bg-white text-center transition-all"
                                             onchange="jumpToPosition(this, {{ $index + 1 }})"
                                             title="พิมพ์ตัวเลขลำดับที่ต้องการเพื่อย้ายทันที">
+                                        @else
+                                        <div class="w-14 text-center text-sm font-medium text-gray-600">
+                                            {{ $index + 1 }}
+                                        </div>
+                                        @endauth
                                     </td>
                                     <td class="px-6 py-4">
                                         <div class="flex flex-col">
@@ -212,6 +244,7 @@
                                     <td class="px-6 py-4 text-gray-600 text-sm">{{ Str::limit($person->position, 30) ?: '-' }}
                                     </td>
                                     <td class="px-6 py-4 text-gray-600 text-sm">{{ $person->phone ?: '-' }}</td>
+                                    @auth
                                     <td class="px-6 py-4 text-right">
                                         <div class="flex items-center justify-end gap-1">
                                             <a href="{{ route('personnel.edit', $person) }}"
@@ -227,6 +260,7 @@
                                             </form>
                                         </div>
                                     </td>
+                                    @endauth
                                 </tr>
                             @endforeach
                         </tbody>
@@ -245,10 +279,13 @@
         @endforelse
     </div>
 
+    @auth
     <!-- SortableJS -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    @endauth
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            @auth
             const draggables = document.querySelectorAll('.sortable-list');
 
             draggables.forEach(draggable => {
@@ -266,6 +303,7 @@
                     }
                 });
             });
+            @endauth
 
             // Quick Filter Logic (Client-side highlight)
             const quickFilter = document.getElementById('quickFilter');
@@ -291,6 +329,7 @@
             }
         });
 
+        @auth
         // Update indexes and send to backend
         function updateOrderAndSave(tbody) {
             const rows = Array.from(tbody.querySelectorAll('tr'));
@@ -382,5 +421,6 @@
             row.classList.add('bg-blue-50');
             setTimeout(() => row.classList.remove('bg-blue-50'), 1000);
         };
+        @endauth
     </script>
 </x-app-layout>

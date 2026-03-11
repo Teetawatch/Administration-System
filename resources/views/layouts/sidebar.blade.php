@@ -142,14 +142,15 @@ Responsive Sidebar
         </nav>
 
         {{-- User Section --}}
+        @auth
         <div class="border-t border-gray-200 p-4 bg-gray-50 shrink-0">
             <div class="flex items-center gap-3">
                 <div class="flex items-center justify-center w-10 h-10 rounded-full bg-navy-100 text-navy-700 shrink-0">
                     <i data-lucide="user" class="w-5 h-5"></i>
                 </div>
                 <div x-show="!collapsed" x-transition.opacity class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-700 truncate">{{ Auth::user()->name ?? 'ผู้ใช้งาน' }}</p>
-                    <p class="text-xs text-gray-500 truncate">{{ Auth::user()->email ?? '' }}</p>
+                    <p class="text-sm font-medium text-gray-700 truncate">{{ Auth::user()->name }}</p>
+                    <p class="text-xs text-gray-500 truncate">{{ Auth::user()->email }}</p>
                 </div>
                 <div x-show="!collapsed" x-data="{ userMenu: false }" class="relative">
                     <button type="button" @click="userMenu = !userMenu"
@@ -175,4 +176,18 @@ Responsive Sidebar
                 </div>
             </div>
         </div>
+        @else
+        <div class="border-t border-gray-200 p-4 bg-gray-50 shrink-0">
+            <div class="flex items-center justify-center">
+                <div x-show="!collapsed" x-transition.opacity>
+                    <a href="{{ route('login') }}" class="text-sm font-medium text-navy-600 hover:text-navy-800 transition">เข้าสู่ระบบ / ลงชื่อเข้าใช้</a>
+                </div>
+                <div x-show="collapsed" x-transition.opacity>
+                    <a href="{{ route('login') }}" class="text-sm font-medium text-navy-600 hover:text-navy-800 transition">
+                        <i data-lucide="log-in" class="w-5 h-5"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        @endauth
     </aside>

@@ -51,6 +51,24 @@ class PersonnelController extends Controller
     }
 
     /**
+     * Export personnel data to Excel with current filters and view mode.
+     */
+    public function exportExcel(Request $request)
+    {
+        $viewMode = $request->input('view_mode', 'department');
+
+        $personnelByDepartment = $this->personnelService->getPersonnelByDepartment(
+            search: $request->input('search'),
+            department: $request->input('department'),
+            status: 'active',
+            viewMode: $viewMode
+        );
+
+        $filename = 'personnel-' . ($viewMode == 'all' ? 'all-' : 'dept-') . date('Y-m-d') . '.xlsx';
+        return Excel::download(new \App\Exports\PersonnelExport($personnelByDepartment), $filename);
+    }
+
+    /**
      * Import personnel data from Excel file.
      */
     public function import(Request $request): RedirectResponse
